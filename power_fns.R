@@ -2,13 +2,8 @@ generatePoissonData = function(psi, num_reps, beta, gamma) {
   y1 = rpois(num_reps, lambda=gamma*psi + beta)
   y2 = rpois(num_reps, lambda=beta*t)
   y3 = rpois(num_reps, lambda=gamma*u)
-  Y = matrix(data=c(y1, y2, y3), nrow=3, ncol=length(y1))
+  Y = matrix(data=t(c(y1, y2, y3)), nrow=3, ncol=length(y1), byrow=TRUE)
   return(Y)
-}
-Y = generatePoissonData(3, 2, 0.321, 0.175)
-print(Y)
-for (i in 1:ncol(Y)) {
-  print(Y[1, i])
 }
 
 power_lrt = function(psis, beta, gamma, alpha, num_reps) {
@@ -33,7 +28,9 @@ power_lrt = function(psis, beta, gamma, alpha, num_reps) {
   }
   return(res)
 }
-power_lrt(psis=c(0.004), beta=0.291, gamma=0.175, alpha=0.1, num_reps=100)
+
+#quick test of power_lrt
+power_lrt(psis=c(3), beta=0.291, gamma=0.175, alpha=0.1, num_reps=100)
 
 power_r = function(psis, beta, gamma, alpha, num_reps) {
   res = c()
@@ -46,7 +43,7 @@ power_r = function(psis, beta, gamma, alpha, num_reps) {
       beta_p = beta_p(psi, y)
       gamma_p = gamma_p(psi, y)
       psi_global_mle = getGlobalMLE(psi, y)
-      
+
       rate_mle = gamma_p*psi_global_mle + beta_p
       psi_0 = beta_p
       
@@ -57,16 +54,15 @@ power_r = function(psis, beta, gamma, alpha, num_reps) {
         num_rejections = num_rejections + 1
       }
     }
-    print(psi_global_mle)
-    
     res = append(res, num_rejections / num_reps)
-    
   }
   return(res)
 }
-power_r(psis=c(4), beta=0.296, gamma=0.175, alpha=0.1, num_reps=100)
 
-getCriticalValueViaBoot = function(psi, psi_global_mle, Y,
+#quick test of power_r
+power_r(psis=c(0.05), beta=0.296, gamma=0.175, alpha=0.1, num_reps=200)
+
+getCriticalValueViaBoot = function(psi, Y,
                                    alpha, num_boot_samples) {
   y1_boot = sample(Y[1,], num_boot_samples, replace=TRUE)
   y2_boot = sample(Y[2,], num_boot_samples, replace=TRUE)
@@ -74,6 +70,8 @@ getCriticalValueViaBoot = function(psi, psi_global_mle, Y,
   r_vals=c()
   for (i in 1:num_boot_samples) {
     y_boot = c(y1_boot[i], y2_boot[i], y3_boot[i])
+    psi_global_mle = getGlobalMLE(psi, y_boot)
+    
     r_vals = append(r_vals, r_psi(psi, psi_global_mle, y_boot))
   }
   r_vals = sort(r_vals)
@@ -81,6 +79,7 @@ getCriticalValueViaBoot = function(psi, psi_global_mle, Y,
   r_ecdf = 1:length(r_vals)/length(r_vals)
 
   crit = r_vals[which(r_ecdf >= 1-alpha)[1]]
+  return(crit)
 }
 
 power_r_boot = function(psis, beta, gamma, alpha, 
@@ -88,38 +87,36 @@ power_r_boot = function(psis, beta, gamma, alpha,
   res = c()
   for (psi in psis) {
     Y = generatePoissonData(psi, num_reps, beta, gamma)
-    
-    num_rejections = 0
-    crit = getCriticalValueViaBoot(psi, 4.021, Y,
+    crit = getCriticalValueViaBoot(psi, Y,
                                    alpha, num_boot_samples)
+
     num_rejected = 0
     for (i in 1:ncol(Y)) {
       y = Y[,i]
       beta_p = beta_p(psi, y)
       gamma_p = gamma_p(psi, y)
+      
       psi_global_mle = getGlobalMLE(psi, y)
       
-      rate_mle = gamma_p*psi_global_mle + beta_p
-      psi_0 = beta_p
-    
       r_val = r_psi(psi, psi_global_mle, y)
       if (!is.nan(r_val) && !is.na(r_val) && r_val > crit) {
         num_rejected = num_rejected + 1
       }
     }
     res = append(res, num_rejected/num_reps)
-    
   }
   return(res)
 }
-power_r_boot(psi=c(0.5), beta=0.296, gamma=0.175, alpha=0.1, 
-             num_reps=200, num_boot_samples=500)
+
+#quick test of power_r_boot
+power_r_boot(psi=c(5), beta=0.296, gamma=0.175, alpha=0.1, 
+             num_reps=200, num_boot_samples=300)
+
 
 
 power_r_star = function(psi, alpha, num_boot_samples) {
-    
+    ##### TODO
 }
-power_r_star(0.0005, 0.1, 100)
 
 
 
@@ -152,7 +149,10 @@ lines(psis, power_r_boot(psis, b, g, a,
 
 
 
-#### Zoom in closer to zero
+###########################################
+#### Plot that is closer to zero
+###########################################
+
 psis = seq(0.0001, 2.0001, 0.1)
 title = paste("Power fns; beta=", b, ", gamma=", g, ", alph=", a, sep="")
 plot(psis, power_lrt(psis, b, g, a, num_reps=500), 
@@ -163,8 +163,8 @@ lines(psis, power_r(psis, b, g, a, num_reps=300), col="red")
 lines(psis, power_r_boot(psis, b, g, a, 
                          num_reps=200, 
                          num_boot_samples = 500), col="purple")
-legend(x=1.0, y=0.2, 
-       legend=c("LRT", "r", "r.boot", "Feldman-Cousins"), 
-       col=c("blue", "red", "purple", "dark orange"),
+legend(x=1.0, y=0.8, 
+       legend=c("LRT", "r", "r.boot"), 
+       col=c("blue", "red", "purple"),
        lty=1:1, cex=0.8
 )

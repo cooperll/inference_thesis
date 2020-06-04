@@ -33,31 +33,13 @@ beta_p = function(psi, y) {
 }
 
 l_p = function(psi, y) {
-  val = l_full(psi, 
-               beta_p(psi, y), 
-               gamma_p(psi, y), 
-               y)
+  val = l(psi, beta_p(psi, y), gamma_p(psi, y), y)
   return(val)
-}
-
-# Obtains a global MLE by maximizing the 
-# profile likelihood
-getGlobalMLE = function(psi_init, y) {
-  res = optim(par=c(psi_init), 
-              fn=optim_l_p, gr=NULL, y, 
-              method="Brent", lower=0.0001, upper=13)
-  theta_global_mle = res$par
-  return(theta_global_mle)
 }
 
 # Signed root likelihood statistic
 r_psi = function(psi, psi_global_mle, y) {
   diff = l_p(psi_global_mle, y) - l_p(psi, y)
-  #print("l_p 's")
-  #print(l_p(psi_global_mle, y))  
-  #print(l_p(psi, y))
-
-  l_p(psi_global_mle, y)
   val = sign(psi_global_mle - psi) * sqrt(2 * diff)
   return(val)
 }
@@ -68,4 +50,34 @@ r_star_psi = function(psi) {
 
 q_psi = function(psi) {
   
+}
+
+
+
+##########################################
+####### Numerical solution helper functions
+##########################################
+
+# Obtains a global MLE by maximizing the 
+# profile likelihood
+getGlobalMLE = function(psi_init, y) {
+  res = optim(par=c(psi_init), 
+              fn=optim_l_p, gr=NULL, y, 
+              method="Brent", lower=0.0001, upper=15)
+  theta_global_mle = res$par
+  return(theta_global_mle)
+}
+
+# a wrapper around l_p to be used by optim() 
+optim_l_p = function(psi, y) {
+  -l_p(psi, y)
+} 
+
+# a test call to optim() with optim_l_p()
+l_p_numerical_psi = optim(par=c(4), fn=optim_l_p, gr=NULL,
+                          y, method="Brent", lower=0, upper=15)
+
+# a wrapper around the likelihood to be used by optim() 
+optim_likelihood = function(param) {
+  -l(param[1], param[2], param[3], y)
 }
