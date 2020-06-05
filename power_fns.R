@@ -6,146 +6,126 @@ generatePoissonData = function(psi, num_reps, beta, gamma) {
   return(Y)
 }
 
-power_lrt = function(psis, beta, gamma, alpha, num_reps) {
+#
+# power() is a helper function - it is passed the relevant parameters,
+# the TestStat (such as r(psi)) and the criticalValue, and it
+# computes the power of the test statistic for the given value of psi
+power = function(psi, psi_0, beta, gamma, TestStat,
+                 num_reps, criticalValue) {
+  Y = generatePoissonData(psi, num_reps, beta, gamma)
+  num_rejected = 0
+  for (i in 1:ncol(Y)) {
+    y = Y[,i]
+    testStatValue = TestStat(psi_0, y)
+
+    if (!is.nan(testStatValue) &&
+        !is.na(testStatValue) &&
+        testStatValue > criticalValue) {
+      num_rejected = num_rejected + 1
+    }
+  }
+  return(num_rejected/num_reps)
+}
+
+# calculates power of the LRT for all values in psis
+power_lrt = function(psis, psi_0, beta, gamma, alpha, num_reps) {
   res = c()
+  chisq_alpha = qchisq(1-alpha, 1)
+
   for (psi in psis) {
     Y = generatePoissonData(psi, num_reps, beta, gamma)
-    
-    num_rejections = 0
-    for (i in 1:ncol(Y)) {
-      y = Y[,i]
-      beta_p = beta_p(psi, y)
-      gamma_p = gamma_p(psi, y)
-  
-      chi_alpha = qchisq(1-alpha, 1)
-      q = (chi_alpha/2 + gamma_p*psi) * (1/log((gamma_p*psi/beta_p)+1))
-      
-      if (!is.nan(q) && !is.na(q) && y[1] > q) {
-        num_rejections = num_rejections + 1
-      }
-    }
-    res = append(res, num_rejections / num_reps)
+    res = append(res, power(psi, psi_0, beta, gamma,
+                            lrt, num_reps, chisq_alpha))
   }
   return(res)
 }
 
 #quick test of power_lrt
-power_lrt(psis=c(3), beta=0.291, gamma=0.175, alpha=0.1, num_reps=100)
+power_lrt(psis=c(3), psi_0=0,
+          beta=0.291, gamma=0.175, alpha=0.1,
+          num_reps=1000)
 
-power_r = function(psis, beta, gamma, alpha, num_reps) {
+power_r = function(psis, psi_0, beta, gamma, alpha, num_reps) {
   res = c()
+  z_alpha = qnorm(1-alpha)
+
   for (psi in psis) {
     Y = generatePoissonData(psi, num_reps, beta, gamma)
-    
-    num_rejections = 0
-    for (i in 1:ncol(Y)) {
-      y = Y[,i]
-      beta_p = beta_p(psi, y)
-      gamma_p = gamma_p(psi, y)
-      psi_global_mle = getGlobalMLE(psi, y)
-
-      rate_mle = gamma_p*psi_global_mle + beta_p
-      psi_0 = beta_p
-      
-      z_alpha = qnorm(1-alpha)
-      
-      q = ((z_alpha^2)/2 + gamma_p*psi_global_mle) * (1/log(rate_mle/psi_0))
-      if (!is.nan(q) && !is.na(q) && y[1] > q) {
-        num_rejections = num_rejections + 1
-      }
-    }
-    res = append(res, num_rejections / num_reps)
+    res = append(res, power(psi, psi_0, beta, gamma,
+                            r_psi, num_reps, z_alpha))
   }
   return(res)
 }
 
 #quick test of power_r
-power_r(psis=c(0.05), beta=0.296, gamma=0.175, alpha=0.1, num_reps=200)
+power_r(psis=c(0.05), psi_0=0,
+        beta=0.296, gamma=0.175, alpha=0.1, num_reps=200)
 
-getCriticalValueViaBoot = function(psi, Y,
-                                   alpha, num_boot_samples) {
+getCriticalValueViaBoot = function(psi_0, Y, alpha,
+                                   num_boot_samples) {
   y1_boot = sample(Y[1,], num_boot_samples, replace=TRUE)
   y2_boot = sample(Y[2,], num_boot_samples, replace=TRUE)
   y3_boot = sample(Y[3,], num_boot_samples, replace=TRUE)
+
   r_vals=c()
   for (i in 1:num_boot_samples) {
     y_boot = c(y1_boot[i], y2_boot[i], y3_boot[i])
-    psi_global_mle = getGlobalMLE(psi, y_boot)
-    
-    r_vals = append(r_vals, r_psi(psi, psi_global_mle, y_boot))
+    r_vals = append(r_vals, r_psi(psi_0, y_boot))
   }
   r_vals = sort(r_vals)
-  
+
   r_ecdf = 1:length(r_vals)/length(r_vals)
 
   crit = r_vals[which(r_ecdf >= 1-alpha)[1]]
   return(crit)
 }
 
-power_r_boot = function(psis, beta, gamma, alpha, 
+power_r_boot = function(psis, psi_0, beta, gamma, alpha,
                         num_reps, num_boot_samples) {
   res = c()
   for (psi in psis) {
-    Y = generatePoissonData(psi, num_reps, beta, gamma)
-    crit = getCriticalValueViaBoot(psi, Y,
+    Y = generatePoissonData(psi_0, num_reps=num_reps, beta, gamma)
+    crit = getCriticalValueViaBoot(psi_0, Y,
                                    alpha, num_boot_samples)
-
-    num_rejected = 0
-    for (i in 1:ncol(Y)) {
-      y = Y[,i]
-      beta_p = beta_p(psi, y)
-      gamma_p = gamma_p(psi, y)
-      
-      psi_global_mle = getGlobalMLE(psi, y)
-      
-      r_val = r_psi(psi, psi_global_mle, y)
-      if (!is.nan(r_val) && !is.na(r_val) && r_val > crit) {
-        num_rejected = num_rejected + 1
-      }
-    }
-    res = append(res, num_rejected/num_reps)
+    res = append(res, power(psi, psi_0, beta, gamma,
+                            r_psi, num_reps, crit))
   }
   return(res)
 }
-
-#quick test of power_r_boot
-power_r_boot(psi=c(5), beta=0.296, gamma=0.175, alpha=0.1, 
-             num_reps=200, num_boot_samples=300)
-
-
+# quick test of bootstrap r(psi) power function
+power_r_boot(psis=c(5), psi_0=0, beta=0.296, gamma=0.175, alpha=0.1,
+               num_reps=100, num_boot_samples=200)
 
 power_r_star = function(psi, alpha, num_boot_samples) {
     ##### TODO
 }
 
 
-
 ###########################################
 #### Plotting the various power functions
 ###########################################
 
-
-
 psis = seq(0.001, 10, 0.5)
+psi_0 = 0
 b = 0.296
 g = 0.175
 a = 0.1
-psi_string = expression(psi) 
+psi_string = expression(psi)
 title = paste("Power fns; beta=", b, ", gamma=", g, ", alph=", a, sep="")
-plot(psis, power_lrt(psis, b, g, a, num_reps=500), type="l", col="blue", 
+plot(psis, power_lrt(psis, psi_0, b, g, a, num_reps=200), type="l", col="blue",
      xlab=psi_string, ylab="Power", main=title,
      ylim=c(0,1.2))
-legend(x=6, y=0.3, 
-       legend=c("LRT", "r", "r.boot"), 
+legend(x=6, y=0.3,
+       legend=c("LRT", "r", "r.boot"),
        col=c("blue", "red", "purple"),
        lty=1:1, cex=0.8
 )
 
-lines(psis, power_r(psis, b, g, a, num_reps=300), col="red")
+lines(psis, power_r(psis, psi_0, b, g, a, num_reps=300), col="red")
 
-lines(psis, power_r_boot(psis, b, g, a, 
-                         num_reps=200, 
-                         num_boot_samples = 500), col="purple")
+lines(psis, power_r_boot(psis, psi_0, b, g, a,
+                         num_reps=100,
+                         num_boot_samples = 200), col="purple")
 
 
 
@@ -153,18 +133,18 @@ lines(psis, power_r_boot(psis, b, g, a,
 #### Plot that is closer to zero
 ###########################################
 
-psis = seq(0.0001, 2.0001, 0.1)
+psis = seq(0, 1.0001, 0.05)
 title = paste("Power fns; beta=", b, ", gamma=", g, ", alph=", a, sep="")
-plot(psis, power_lrt(psis, b, g, a, num_reps=500), 
-     type="l", col="blue", 
-     ylim=c(0, 0.9),
+plot(psis, power_lrt(psis, psi_0, b, g, a, num_reps=200),
+     type="l", col="blue",
+     ylim=c(0, 0.4),
      xlab=psi_string, ylab="Power", main=title)
-lines(psis, power_r(psis, b, g, a, num_reps=300), col="red")
-lines(psis, power_r_boot(psis, b, g, a, 
-                         num_reps=200, 
-                         num_boot_samples = 500), col="purple")
-legend(x=1.0, y=0.8, 
-       legend=c("LRT", "r", "r.boot"), 
+lines(psis, power_r(psis, psi_0, b, g, a, num_reps=300), col="red")
+lines(psis, power_r_boot(psis, psi_0, b, g, a,
+                         num_reps=200,
+                         num_boot_samples = 300), col="purple")
+legend(x=0, y=0.4,
+       legend=c("LRT", "r", "r.boot"),
        col=c("blue", "red", "purple"),
        lty=1:1, cex=0.8
-)
+      )
