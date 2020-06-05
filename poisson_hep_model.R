@@ -14,11 +14,11 @@ l = function(psi, beta, gamma, y) {
 # Constrained MLE of gamma
 gamma_p = function(psi, y) {
   K = psi * t[1] - u[1]
-  
+
   A = K * (psi + u[1])
   B = (psi + u[1]) * (y[2] + y[3]) - K*y[1] - K*y[3]
   C = - y[3] * (y[1] + y[2] + y[3])
-  
+
   numerator = -B + sqrt(B^2 - 4*A*C)
   return(numerator / (2*A))
 }
@@ -30,7 +30,7 @@ beta_p = function(psi, y) {
   }
   K = (psi * t[1]) - u[1]
   gamma = gamma_p(psi, y)
-  
+
   numerator = psi * y[2] * gamma
   return(numerator / ((K*gamma) + y[3]))
 }
@@ -45,21 +45,21 @@ l_p = function(psi, y) {
 ####### Numerical solution helper functions
 ##########################################
 
-# a wrapper around the likelihood to be used by optim() 
+# a wrapper around the likelihood to be used by optim()
 optim_likelihood = function(param) {
   -l(param[1], param[2], param[3], y)
 }
 
-# a wrapper around l_p to be used by optim() 
+# a wrapper around l_p to be used by optim()
 optim_l_p = function(psi, y) {
   -l_p(psi, y)
-} 
+}
 
-# Obtains a global MLE by maximizing the 
+# Obtains a global MLE by maximizing the
 # profile likelihood
 getGlobalMLE = function(psi_init, y) {
-  res = optim(par=c(psi_init), 
-              fn=optim_l_p, gr=NULL, y, 
+  res = optim(par=c(psi_init),
+              fn=optim_l_p, gr=NULL, y,
               method="Brent", lower=-15, upper=150)
   theta_global_mle = res$par
   return(theta_global_mle)
