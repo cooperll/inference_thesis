@@ -8,10 +8,23 @@ lrt = function(psi_0, y) {
   return(2 * diff)
 }
 
+# Profile Likelihood statistic?
+R_psi = function(psi_0, y) {
+  psi_global_mle = getGlobalMLE(y)[1]
+  diff = L_p(psi_global_mle, y) - L_p(psi_0, y)
+  return(diff)
+}
+
 # Signed root likelihood statistic
 r_psi = function(psi_0, y) {
   psi_global_mle = getGlobalMLE(y)[1]
   diff = l_p(psi_global_mle, y) - l_p(psi_0, y)
+  if (is.nan(diff) || is.na(diff)) {
+    browser()
+  }
+  if (diff < 0) {
+    print("r_psi : diff is negative")
+  }
   val = sign(psi_global_mle - psi_0) * sqrt(2 * diff)
   return(val)
 }
@@ -38,14 +51,6 @@ r_star_psi = function(psi_0, y) {
   v_p = det_dl_term / j_term
   return(r_psi + (log(v_p/r_psi)) / r_psi)
 }
-1 - pnorm(r_psi(-1, y))
-
-Y = seq(-5, 15, 1)
-plot(Y, r_star_psi(0.5, Y), 
-     type="l", col="blue",
-     xlab=expression(psi), ylab="Value", 
-     main="Verification of r*")
-
 
 R = function(psi_0, y) {
   return(p_star(Y, Y, y)/p_star(Y, 0, y))
@@ -55,42 +60,13 @@ fc_psi = function(psi_0, y) {
   
 }
 
-
-psis = seq(-1.5, 15, 0.01)
-plot(Y, p_star(Y, 0, y), 
-     type="l", col="blue",
-     xlab=expression(psi), ylab="Value", 
-     main="p*")
-lines(Y, p_star(Y, Y, y), 
-      type="l", col="blue",
-      xlab=expression(psi), ylab="Value", 
-      main="p*")
-lines(Y, p_star(Y, 4, y), 
-      type="l", col="blue",
-      xlab=expression(psi), ylab="Value", 
-      main="p*")
-
-plot(Y, p_star(Y, Y, y)/p_star(Y, 0, y), 
-     type="l", col="blue",
-     xlab=expression(psi), ylab="Value", 
-     main="p*")
-lines(Y, 1 - 4000*p_star(Y, 4, y), 
-      type="l", col="red",
-      xlab=expression(psi), ylab="Value", 
-      main="p*")
-
-p_star(1, 4, y)
-4000*p_star(Y, 4, y)
-
-
-
-psis = seq(-1.5, 15, 0.01)
-res = c()
-for (psi in psis) {
-  res = append(res, p_star(psi, 0, y))
-}
-plot(psis, res, 
-     type="l", col="blue",
-     xlab=expression(psi), ylab="Value", 
-     main="p*")
-p_star(3, 5, y)
+#psis = seq(-1.5, 15, 0.01)
+#res = c()
+#for (psi in psis) {
+#  res = append(res, p_star(psi, 0, y))
+#}
+#plot(psis, res, 
+#     type="l", col="blue",
+#     xlab=expression(psi), ylab="Value", 
+#     main="p*")
+#p_star(3, 5, y)

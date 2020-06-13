@@ -3,6 +3,21 @@ y = matrix(c(1, 8, 14), nrow=3, ncol=1, byrow=FALSE)
 t = c(27)
 u = c(80)
 
+# Obtains the global MLE
+getGlobalMLE = function(y) {
+  beta = y[2]/t
+  gamma = y[3]/u
+  
+  # This seems super dodgy, but I'm not sure
+  # how else to handle this case at the moment.
+  if (gamma == 0) {
+    psi = y[1] - beta
+  } else {
+    psi = (y[1] - beta) / gamma
+  }
+  return(c(psi, beta, gamma))
+}
+
 # Likelihood function
 L = function(psi, beta, gamma, y) {
   L1 = ((gamma[1]*psi + beta[1])^y[1]) * exp(-(gamma[1]*psi + beta[1]))
@@ -14,9 +29,23 @@ L = function(psi, beta, gamma, y) {
 
 # Log-likelihood function
 l = function(psi, beta, gamma, y) {
-  L1 = y[1] * log(gamma[1]*psi + beta[1]) - (gamma[1]*psi + beta[1])
-  L2 = y[2] * log(beta[1]*t[1]) - beta[1]*t[1]
-  L3 = y[3] * log(gamma[1]*u[1]) - gamma[1]*u[1]
+  v = gamma[1]*psi + beta[1]
+  w = beta[1]*t[1]
+  u = gamma[1]*u[1]
+  
+  if (is.nan(v) || is.na(v) || v <= 0) {
+    v = 0.0000001
+  }
+  if (is.nan(w) || is.na(w) || w <= 0) {
+    w = 0.0000001
+  }
+  if (is.nan(u) || is.na(u) || u <= 0) {
+    u = 0.0000001
+  }
+  
+  L1 = y[1] * log(v) - (gamma[1]*psi + beta[1])
+  L2 = y[2] * log(w) - beta[1]*t[1]
+  L3 = y[3] * log(u) - gamma[1]*u[1]
   return(L1 + L2 + L3)
 }
 
@@ -51,6 +80,30 @@ gamma_p_0 = function(y) {
   return( y[3]/u )
 }
 
+# Profile likelihood 
+L_p = function(psi, y) {
+  beta_p = beta_p_0(y)
+  gamma_p = gamma_p_0(y)
+  return(L(psi, beta_p, gamma_p, y))
+}
+
+# Derivative of the profile likelihood
+dL_p = function(psi, y) {
+  beta_p = beta_p_0(y)
+  gamma_p = gamma_p_0(y)
+  
+  y_fact = factorial(y[1]) * factorial(y[2]) * factorial(y[3])
+  Q = ((beta_p*t)^y[2]) * ((gamma_p*u)^y[3])
+  if (y[1] == 0) {
+    psi_term_1 = gamma_p
+  } else {
+    psi_term_1 = y[1] * gamma_p * ((gamma_p * psi + beta_p)^(y[1]-1))
+  }
+  psi_term_2 =  gamma_p * exp(-((gamma_p * psi + beta_p) + beta_p*t + gamma_p*u))
+  return(y_fact * Q * psi_term_1 * psi_term_2)
+}
+
+# Profile log likelihood
 l_p = function(psi, y) {
   if (is.na(beta_p_0(y))) {
     print("UH OH")
@@ -60,9 +113,20 @@ l_p = function(psi, y) {
   return(val)
 }
 
-l_p(2, y) - l_p(5, y)
+# Approximate inverse of l_p, derived using a Taylor expansion
+k_p = function(x, y) {
+  beta_p = beta_p_0(y)
+  gamma_p = gamma_p_0(y)
+  
+  Q = y[2]*log(beta_p*t) + y[3]*log(gamma_p*u) - beta_p*(1+t) - gamma_p*u
+  denom = gamma_p*(1 + (1/y[1]))
+  num = exp((Q - x)/y[1]) - beta_p - 1
+  return(num / denom)
+}
 
-
+dk_p = function(x, y) {
+  return((-1/y[1])*k_p(x, y))
+}
 
 # Observed Fisher information
 j = function(psi, beta, gamma, y) {
@@ -89,8 +153,6 @@ j = function(psi, beta, gamma, y) {
   )
 }
 
-j(4.029, 0.321, 0.175, y)
-
 # derivatives of the log-likelihood w.r.t. psi, beta, and gamma
 dl = function(psi, beta, gamma, y) {
   y1_expected = gamma*psi + beta
@@ -99,7 +161,6 @@ dl = function(psi, beta, gamma, y) {
   dl_dg = (y[1]*psi/(y1_expected)) + (y[3]/gamma) - (psi + u)
   return(c(dl_dp, dl_db, dl_dg))
 }
-dl(4.029, 0.321, 0.175, y)
 
 # derivatives of the log-likelihood w.r.t. the MLEs
 dl_dtheta_hat = function(psi, beta, gamma, y) {
@@ -114,7 +175,6 @@ dl_dtheta_hat = function(psi, beta, gamma, y) {
   dl_dg = psi_mle*log(y1_expected) + u*log(gamma*u)
   return(c(dl_dp, dl_db, dl_dg))
 }
-dl_dtheta_hat(4.029, 0.296, 0.175, y)
 
 # second derivatives of the log-likelihood w.r.t. 
 # first: the MLEs and second: the nuisance parameters 
@@ -141,7 +201,6 @@ dl_dlambda_dtheta_hat = function(psi, beta, gamma, y) {
           ), nrow=2, ncol=3)
   )
 }
-dl_dlambda_dtheta_hat(0, 0.296, 0.175, y)
 
 # Barndorff-Nielsen's p* formula for the density of the MLE
 p_star = function(psi_mle, psi_true, y) {
@@ -154,26 +213,4 @@ p_star = function(psi_mle, psi_true, y) {
   j_term = det(j(psi_mle, beta_p, gamma_p, y)) / det(j_lambda)
 
   return(sqrt(j_term) * exp(-l_p(psi_true, y) + l_p(psi_mle, y)))
-}
-
-###################################################
-####### Numerical solution helper functions
-###################################################
-
-# a wrapper around the likelihood to be used by optim()
-optim_likelihood = function(param) {
-  -l(param[1], param[2], param[3], y)
-}
-
-# a wrapper around l_p to be used by optim()
-optim_l_p = function(psi, y) {
-  -l_p(psi, y)
-}
-
-# Obtains the global MLE
-getGlobalMLE = function(y) {
-  beta = y[2]/t
-  gamma = y[3]/u
-  psi = (y[1] - beta) / gamma
-  return(c(psi, beta, gamma))
 }
