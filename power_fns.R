@@ -1,137 +1,49 @@
-generatePoissonData = function(psi, num_reps, beta, gamma) {
-  y1 = rpois(num_reps, lambda=gamma*psi + beta)
-  y2 = rpois(num_reps, lambda=beta*t)
-  y3 = rpois(num_reps, lambda=gamma*u)
-  Y = matrix(data=t(c(y1, y2, y3)), nrow=3, ncol=length(y1), byrow=TRUE)
-  return(Y)
-}
-
 #
 # power() is a helper function - it is passed the relevant parameters,
 # the TestStat (such as r(psi)) and the criticalValue, and it
 # computes the power of the test statistic for the given value of psi
-power = function(psi, psi_0, beta, gamma, TestStat,
-                 num_reps, criticalValue, ...) {
-  Y = generatePoissonData(psi, num_reps, beta, gamma)
-  num_rejected = 0
-  for (i in 1:ncol(Y)) {
-    y = Y[,i]
-    testStatValue = TestStat(psi_0, y, ...)
-
-    if (!is.nan(testStatValue) &&
-        !is.na(testStatValue) &&
-        testStatValue > criticalValue) {
-      num_rejected = num_rejected + 1
-    }
-  }
-  return(num_rejected/num_reps)
-}
-
-# calculates power of the LRT for all values in psis
-power_lrt = function(psis, psi_0, beta, gamma, alpha, num_reps) {
+#
+# If the test statistic is going to utilize bootstrap for estimation
+# of p values, then the additional parameters origData and 
+# num_boot_samples *cannot* be NULL. 
+power = function(psis, psi_0, beta, gamma, TestStat,
+                 num_reps, alpha, isBoot=FALSE, 
+                 origData=NULL, num_boot_samples=NULL) {
   res = c()
-  chisq_alpha = qchisq(1-alpha, 1)
-
-  for (psi in psis) {
-    res = append(res, power(psi, psi_0, beta, gamma,
-                            lrt, num_reps, chisq_alpha))
-  }
-  return(res)
-}
-
-power_r = function(psis, psi_0, beta, gamma, alpha, num_reps) {
-  res = c()
-  z_alpha = qnorm(1-alpha)
-
-  for (psi in psis) {
-    res = append(res, power(psi, psi_0, beta, gamma,
-                            r_psi, num_reps, z_alpha))
-  }
-  return(res)
-}
-
-power_c = function(psis, psi_0, beta, gamma, alpha, 
-                   num_reps, num_boot_samples, nth) {
-  res = c()
-  for (psi in psis) {
-    Y = generatePoissonData(psi_0, num_reps=num_reps, beta, gamma)
-    crit = getCriticalValueViaBoot(psi_0, Y,
-                                   alpha, num_boot_samples)
-    print(crit)
-    res = append(res, power(psi, psi_0, beta, gamma,
-                            c_psi, num_reps, crit, nth))
-  }
-  return(res)
-}
-
-power_r_boot = function(psis, psi_0, beta, gamma, alpha,
-                        num_reps, num_boot_samples, yData) {
-  beta_c = beta_p_0(yData)
-  gamma_c = gamma_p_0(yData)
   
-  res = c()
+  ### These are set only for the bootstrapped statistics.
+  ### They get used by TestStat, the test statistic whose power
+  ### function we desire. See test_statistics.R for individual
+  ### test statistic implementations. 
+  bootData = NULL
+  if (isBoot) {
+    beta_c = beta_p_0(origData)
+    gamma_c = gamma_p_0(origData)
+    bootData = generatePoissonData(psi_0, num_boot_samples, beta_c, gamma_c)
+  }
+  
+  total = 0
   for (psi in psis) {
     Y = generatePoissonData(psi, num_reps, beta, gamma)
-    
     num_rejected = 0
-    count = 0
     for (i in 1:ncol(Y)) {
-      B = generatePoissonData(psi_0, num_boot_samples, beta_c, gamma_c)
-      
       y = Y[,i]
-      r_obs = r_psi(psi_0, y)
-      count = count + 1
-      pValue = getBootstrapPValue(psi_0, B, r_obs)
+      testStatRes = TestStat(psi_0, y, bootData)
 
-      if (!is.nan(pValue) &&
-          !is.na(pValue) &&
-          pValue < alpha) {
+      ### TODO: this check for NaN is highly undesired.
+      ### Remove after dealing with all the underlying issues?
+      ### Though it seems that r*(psi) and r(psi) produce 
+      ### similar values with and without this check now.
+      if (is.nan(testStatRes[2])) {
+        next
+      }
+      total = total + 1
+      
+      if (testStatRes[2] < alpha) {
         num_rejected = num_rejected + 1
       }
     }
-    res = append(res, num_rejected/count)  
-  }
-  return(res)
-}
-
-# quick test of bootstrap r(psi) power function
-power_r_boot(psis=c(1), psi_0=0, beta=0.296, gamma=0.175, alpha=0.1,
-             num_reps=500, num_boot_samples=100, y)
-
-power_r_star = function(psis, psi_0, beta, gamma, alpha, 
-                        num_reps) {
-  res = c()
-  z_alpha = qnorm(1-alpha)
-  
-  for (psi in psis) {
-    Y = generatePoissonData(psi, num_reps, beta, gamma)
-    res = append(res, power(psi, psi_0, beta, gamma,
-                            r_star_psi, num_reps, z_alpha))
-  }
-  return(res)
-}
-
-power_r_star_boot = function(psis, psi_0, beta, gamma, alpha,
-                        num_reps, num_boot_samples) {
-  res = c()
-  for (psi in psis) {
-    Y = generatePoissonData(psi_0, num_reps=num_reps, beta, gamma)
-    crit = getCriticalValueViaBoot(psi_0, Y, alpha, num_boot_samples)
-    res = append(res, power(psi, psi_0, beta, gamma,
-                            r_star_psi, num_reps, crit))
-  }
-  return(res)
-}
-
-power_fc = function(psis, psi_0, beta, gamma, alpha, 
-                        num_reps) {
-  res = c()
-  z_alpha = qnorm(1-alpha)
-  
-  for (psi in psis) {
-    Y = generatePoissonData(psi, num_reps, beta, gamma)
-    res = append(res, power(psi, psi_0, beta, gamma,
-                            fc_psi, num_reps, z_alpha))
+    res = append(res, num_rejected/num_reps)
   }
   return(res)
 }

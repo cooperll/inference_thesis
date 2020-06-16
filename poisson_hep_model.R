@@ -1,21 +1,33 @@
-# initial values as seen in Davison & Sartori's paper
-y = matrix(c(1, 8, 14), nrow=3, ncol=1, byrow=FALSE)
-t = c(27)
-u = c(80)
-
 # Obtains the global MLE
 getGlobalMLE = function(y) {
   beta = y[2]/t
   gamma = y[3]/u
   
-  # This seems super dodgy, but I'm not sure
-  # how else to handle this case at the moment.
+  # TODO: This seems extremely dodgy, and I dislike having to do this.
+  # Are other inferences even valid with this? Thankfully, gamma's
+  # MLE being zero is a rare event thanks to u = 80, but 
+  # I'm forced to leave it here until I find an analytic solution. 
+  # Maybe a transformation..? 
   if (gamma == 0) {
     psi = y[1] - beta
   } else {
     psi = (y[1] - beta) / gamma
   }
+  
+  ### Make psi obey the non-negativity constraint. 
+  if (psi < 0) {
+    psi = 0
+  }
   return(c(psi, beta, gamma))
+}
+
+# Generates num_reps samples using the HEP Poisson model
+generatePoissonData = function(psi, num_reps, beta, gamma) {
+  y1 = rpois(num_reps, lambda=gamma*psi + beta)
+  y2 = rpois(num_reps, lambda=beta*t)
+  y3 = rpois(num_reps, lambda=gamma*u)
+  Y = matrix(data=t(c(y1, y2, y3)), nrow=3, ncol=length(y1), byrow=TRUE)
+  return(Y)
 }
 
 # Likelihood function
@@ -49,33 +61,12 @@ l = function(psi, beta, gamma, y) {
   return(L1 + L2 + L3)
 }
 
-# Constrained MLE of gamma
-gamma_p = function(psi, y) {
-  K = psi * t[1] - u[1]
-
-  A = K * (psi + u[1])
-  B = (psi + u[1]) * (y[2] + y[3]) - K*y[1] - K*y[3]
-  C = - y[3] * (y[1] + y[2] + y[3])
-
-  numerator = -B + sqrt(B^2 - 4*A*C)
-  return(numerator / (2*A))
-}
-
 # Constrained MLE of beta
-beta_p = function(psi, y) {
-  if (psi == 0) {
-    return(0.321)
-  }
-  K = (psi * t[1]) - u[1]
-  gamma = gamma_p(psi, y)
-
-  numerator = psi * y[2] * gamma
-  return(numerator / ((K*gamma) + y[3]))
-}
-
 beta_p_0 = function(y) {
   return( (y[1] + y[2])/(1+t) )
 }
+
+# Constrained MLE of gamma
 gamma_p_0 = function(y) {
   return( y[3]/u )
 }
@@ -113,37 +104,26 @@ l_p = function(psi, y) {
   return(val)
 }
 
-# Approximate inverse of l_p, derived using a Taylor expansion
-k_p = function(x, y) {
-  beta_p = beta_p_0(y)
-  gamma_p = gamma_p_0(y)
-  
-  Q = y[2]*log(beta_p*t) + y[3]*log(gamma_p*u) - beta_p*(1+t) - gamma_p*u
-  denom = gamma_p*(1 + (1/y[1]))
-  num = exp((Q - x)/y[1]) - beta_p - 1
-  return(num / denom)
-}
-
-dk_p = function(x, y) {
-  return((-1/y[1])*k_p(x, y))
-}
-
 # Observed Fisher information
 j = function(psi, beta, gamma, y) {
   theta_mle = getGlobalMLE(y)
+  psi_mle = theta_mle[1]
   beta_mle = theta_mle[2]
   gamma_mle = theta_mle[3]
-  y1_expected = gamma*psi + beta
+  
+  y1_expected = gamma * psi + beta
 
+  mle_term = gamma_mle * psi_mle + beta_mle
+  
   # remember: y[1] = gamma_mle*psi_mle + beta_mle
-  dl_dpsi2 = -y[1]*(gamma^2)/(y1_expected^2)
-  dl_dpsi_dbeta = -y[1]*gamma/(y1_expected^2)
-  dl_dpsi_dgamma = -( (y[1]*psi*gamma/(y1_expected^2)) + 1)
+  dl_dpsi2 = -mle_term * (gamma^2)/(y1_expected^2)
+  dl_dpsi_dbeta = -mle_term * gamma/(y1_expected^2)
+  dl_dpsi_dgamma = -( (mle_term * psi * gamma/(y1_expected^2)) + 1)
     
-  dl_dbeta2 = -( (y[1]/(y1_expected^2)) + (beta_mle*t/(beta^2)))
-  dl_dbeta_dgamma = -y[1]*psi / (y1_expected^2)
+  dl_dbeta2 = -( (mle_term/(y1_expected^2)) + (beta_mle*t/(beta^2)))
+  dl_dbeta_dgamma = -mle_term * psi / (y1_expected^2)
     
-  dl_dgamma2 = -( (y[1]*(psi^2)/(y1_expected^2)) + (gamma_mle*u/(gamma^2)))
+  dl_dgamma2 = -( (mle_term * (psi^2)/(y1_expected^2)) + (gamma_mle * u/(gamma^2)))
   
   return(matrix(c(
       c(-dl_dpsi2,       -dl_dpsi_dbeta,   -dl_dpsi_dgamma),
@@ -156,6 +136,8 @@ j = function(psi, beta, gamma, y) {
 # derivatives of the log-likelihood w.r.t. psi, beta, and gamma
 dl = function(psi, beta, gamma, y) {
   y1_expected = gamma*psi + beta
+  mle_term = gamma_mle * psi_mle + beta_mle
+  
   dl_dp = (y[1]*gamma/(y1_expected)) 
   dl_db = (y[1]/y1_expected) + (y[2]/beta) - (1+t)
   dl_dg = (y[1]*psi/(y1_expected)) + (y[3]/gamma) - (psi + u)
@@ -168,8 +150,15 @@ dl_dtheta_hat = function(psi, beta, gamma, y) {
   psi_mle = theta_mle[1]
   gamma_mle = theta_mle[3]
   y1_expected = gamma*psi + beta
-  
-  y1_expected = gamma*psi + beta
+  if (y1_expected <= 0) {
+    y1_expected = 0.0000001
+  }
+  if (beta <= 0) {
+    beta = 0.0000001
+  }
+  if (gamma <= 0) {
+    gamma = 0.0000001
+  }
   dl_dp = gamma_mle*log(y1_expected)
   dl_db = log(y1_expected) + t*log(beta*t)
   dl_dg = psi_mle*log(y1_expected) + u*log(gamma*u)
