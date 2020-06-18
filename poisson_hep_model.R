@@ -115,10 +115,9 @@ j = function(psi, beta, gamma, y) {
 
   mle_term = gamma_mle * psi_mle + beta_mle
   
-  # remember: y[1] = gamma_mle*psi_mle + beta_mle
   dl_dpsi2 = -mle_term * (gamma^2)/(y1_expected^2)
   dl_dpsi_dbeta = -mle_term * gamma/(y1_expected^2)
-  dl_dpsi_dgamma = -( (mle_term * psi * gamma/(y1_expected^2)) + 1)
+  dl_dpsi_dgamma = -( 1 - (mle_term * psi * gamma/(y1_expected^2)))
     
   dl_dbeta2 = -( (mle_term/(y1_expected^2)) + (beta_mle*t/(beta^2)))
   dl_dbeta_dgamma = -mle_term * psi / (y1_expected^2)
@@ -175,19 +174,18 @@ dl_dlambda_dtheta_hat = function(psi, beta, gamma, y) {
   gamma_mle = theta_mle[3]
   
   y1_expected = gamma*psi + beta
+  
   dl_dbeta_dpsi_hat = gamma_mle/y1_expected
   dl_dbeta_dbeta_hat = (t/beta) + (1/y1_expected) 
   dl_dbeta_dgamma_hat = (psi_mle/y1_expected) 
   
   dl_dgamma_dpsi_hat = (gamma_mle*psi)/(y1_expected)
   dl_dgamma_dbeta_hat = psi/y1_expected
-  dl_dgamma_dgamma_hat = (u/gamma) + ((psi_mle^2)/y1_expected)
+  dl_dgamma_dgamma_hat = (u/gamma) + (psi*psi_mle/y1_expected)
   
   return(
-    matrix(data=c(
-            c(dl_dbeta_dpsi_hat, dl_dbeta_dbeta_hat, dl_dbeta_dgamma_hat),
-            c(dl_dgamma_dpsi_hat, dl_dgamma_dbeta_hat, dl_dgamma_dgamma_hat)
-          ), nrow=2, ncol=3)
+    rbind(c(dl_dbeta_dpsi_hat, dl_dbeta_dbeta_hat, dl_dbeta_dgamma_hat),
+          c(dl_dgamma_dpsi_hat, dl_dgamma_dbeta_hat, dl_dgamma_dgamma_hat))
   )
 }
 
