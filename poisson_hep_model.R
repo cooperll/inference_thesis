@@ -113,31 +113,42 @@ j = function(psi, beta, gamma, y) {
   
   y1_expected = gamma * psi + beta
 
-  mle_term = gamma_mle * psi_mle + beta_mle
-  
-  dl_dpsi2 = -mle_term * (gamma^2)/(y1_expected^2)
-  dl_dpsi_dbeta = -mle_term * gamma/(y1_expected^2)
-  dl_dpsi_dgamma = -( 1 - (mle_term * psi * gamma/(y1_expected^2)))
+  # I've already added the negative sign for j into 
+  # all of the 2nd derivatives here
+  dl_dpsi2 = y[1] * (gamma^2)/(y1_expected^2)
+  dl_dpsi_dbeta = y[1] * gamma/(y1_expected^2)
+  dl_dpsi_dgamma = (y[1] * psi * gamma /(y1_expected^2)) + 1
     
-  dl_dbeta2 = -( (mle_term/(y1_expected^2)) + (beta_mle*t/(beta^2)))
-  dl_dbeta_dgamma = -mle_term * psi / (y1_expected^2)
+  dl_dbeta2 = (y[1]/(y1_expected^2)) + (y[2]/(beta^2))
+  dl_dbeta_dgamma = y[1]  * psi / (y1_expected^2)
     
-  dl_dgamma2 = -( (mle_term * (psi^2)/(y1_expected^2)) + (gamma_mle * u/(gamma^2)))
+  dl_dgamma2 = (y[1]*(psi^2)/(y1_expected^2)) + (y[3]/(gamma^2))
   
-  return(matrix(c(
-      c(-dl_dpsi2,       -dl_dpsi_dbeta,   -dl_dpsi_dgamma),
-      c(-dl_dpsi_dbeta,  -dl_dbeta2,       -dl_dbeta_dgamma),
-      c(-dl_dpsi_dgamma, -dl_dbeta_dgamma, -dl_dgamma2)
-    ), nrow=3, ncol=3)
+  return(rbind(
+      c(dl_dpsi2,       dl_dpsi_dbeta,   dl_dpsi_dgamma),
+      c(dl_dpsi_dbeta,  dl_dbeta2,       dl_dbeta_dgamma),
+      c(dl_dpsi_dgamma, dl_dbeta_dgamma, dl_dgamma2)
+    )
   )
 }
+
+
+# Example of issue. I thought the observed information
+# was positive determinant and thus j should have a
+# positive determinant...
+j1 = j(21, 0.2962963, 0.125, ytest)
+j1
+det(j1)
+
+getGlobalMLE(c(2, 4, 15))
+j2 = j(9.8765432, 0.1481481, 0.1875, c(2, 4, 15))
+det(j2)
 
 # derivatives of the log-likelihood w.r.t. psi, beta, and gamma
 dl = function(psi, beta, gamma, y) {
   y1_expected = gamma*psi + beta
-  mle_term = gamma_mle * psi_mle + beta_mle
-  
-  dl_dp = (y[1]*gamma/(y1_expected)) 
+
+  dl_dp = (y[1]*gamma/(y1_expected)) - gamma
   dl_db = (y[1]/y1_expected) + (y[2]/beta) - (1+t)
   dl_dg = (y[1]*psi/(y1_expected)) + (y[3]/gamma) - (psi + u)
   return(c(dl_dp, dl_db, dl_dg))

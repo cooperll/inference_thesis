@@ -82,8 +82,16 @@ r_star_psi = function(psi_0, y, ...) {
   
   j = j(MLEs[1], MLEs[2], MLEs[3], y)
   det_j = det(j)
-
-  j_term = sqrt(det_lambda) * sqrt(det_j)
+  
+  if (!is.nan(det_j) && det_j <= 0 && y[1] == 0) {
+    print("UH OH")
+    j_term = NaN
+  } else if (!is.nan(det_j) && det_j <= 0 && y[1] > 0) {
+    print("Meh")
+    j_term = NaN
+  } else {
+    j_term = sqrt(det_lambda) * sqrt(det_j)
+  }
   
   v_p = det_dl_term / j_term
   r_psi = r_psi(psi_0, y)

@@ -31,6 +31,13 @@ plotPowerFns(psis, psi_0, beta, gamma, alpha,
              num_reps, num_boot_samples, origData=y,
              ylim, title)
 
+plot(psis, power(psis, psi_0, beta, gamma, lrt, num_reps=num_reps, alpha), 
+     type="l", col="blue", xlab=psi_string, ylab="Power", 
+     main=title, ylim=ylim)
+
+lines(psis, power(psis, psi_0, beta, gamma, r_star_psi, num_reps=num_reps, alpha), 
+      col="dark green")
+
 legend(x=0, y=0.8,
        legend=c("LRT", "r", "r.boot", "r*", "r* boot"),
        col=c("blue", "red", "purple", "dark green", 
