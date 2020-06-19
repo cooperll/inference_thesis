@@ -30,10 +30,9 @@ power = function(psis, psi_0, beta, gamma, TestStat,
       y = Y[,i]
       testStatRes = TestStat(psi_0, y, bootData)
 
-      ### TODO: this check for NaN is highly undesired.
-      ### Remove after dealing with all the underlying issues?
-      ### Though it seems that r*(psi) and r(psi) produce 
-      ### similar values with and without this check now.
+      ### TODO: remove after stability is guaranteed.
+      ### Right now, just makes sure that power doesn't
+      ### fail on certain cases, like when y_2 or y_3 are 0.
       if (is.nan(testStatRes[2])) {
         next
       }

@@ -113,32 +113,30 @@ j = function(psi, beta, gamma, y) {
   
   y1_expected = gamma * psi + beta
 
-  mle_term = gamma_mle * psi_mle + beta_mle
-  
-  # remember: y[1] = gamma_mle*psi_mle + beta_mle
-  dl_dpsi2 = -mle_term * (gamma^2)/(y1_expected^2)
-  dl_dpsi_dbeta = -mle_term * gamma/(y1_expected^2)
-  dl_dpsi_dgamma = -( (mle_term * psi * gamma/(y1_expected^2)) + 1)
+  # I've already added the negative sign for j into 
+  # all of the 2nd derivatives here
+  dl_dpsi2 = y[1] * (gamma^2)/(y1_expected^2)
+  dl_dpsi_dbeta = y[1] * gamma/(y1_expected^2)
+  dl_dpsi_dgamma = (y[1] * psi * gamma /(y1_expected^2)) + 1
     
-  dl_dbeta2 = -( (mle_term/(y1_expected^2)) + (beta_mle*t/(beta^2)))
-  dl_dbeta_dgamma = -mle_term * psi / (y1_expected^2)
+  dl_dbeta2 = (y[1]/(y1_expected^2)) + (y[2]/(beta^2))
+  dl_dbeta_dgamma = y[1]  * psi / (y1_expected^2)
     
-  dl_dgamma2 = -( (mle_term * (psi^2)/(y1_expected^2)) + (gamma_mle * u/(gamma^2)))
+  dl_dgamma2 = (y[1]*(psi^2)/(y1_expected^2)) + (y[3]/(gamma^2))
   
-  return(matrix(c(
-      c(-dl_dpsi2,       -dl_dpsi_dbeta,   -dl_dpsi_dgamma),
-      c(-dl_dpsi_dbeta,  -dl_dbeta2,       -dl_dbeta_dgamma),
-      c(-dl_dpsi_dgamma, -dl_dbeta_dgamma, -dl_dgamma2)
-    ), nrow=3, ncol=3)
+  return(rbind(
+      c(dl_dpsi2,       dl_dpsi_dbeta,   dl_dpsi_dgamma),
+      c(dl_dpsi_dbeta,  dl_dbeta2,       dl_dbeta_dgamma),
+      c(dl_dpsi_dgamma, dl_dbeta_dgamma, dl_dgamma2)
+    )
   )
 }
 
 # derivatives of the log-likelihood w.r.t. psi, beta, and gamma
 dl = function(psi, beta, gamma, y) {
   y1_expected = gamma*psi + beta
-  mle_term = gamma_mle * psi_mle + beta_mle
-  
-  dl_dp = (y[1]*gamma/(y1_expected)) 
+
+  dl_dp = (y[1]*gamma/(y1_expected)) - gamma
   dl_db = (y[1]/y1_expected) + (y[2]/beta) - (1+t)
   dl_dg = (y[1]*psi/(y1_expected)) + (y[3]/gamma) - (psi + u)
   return(c(dl_dp, dl_db, dl_dg))
@@ -175,19 +173,18 @@ dl_dlambda_dtheta_hat = function(psi, beta, gamma, y) {
   gamma_mle = theta_mle[3]
   
   y1_expected = gamma*psi + beta
+  
   dl_dbeta_dpsi_hat = gamma_mle/y1_expected
   dl_dbeta_dbeta_hat = (t/beta) + (1/y1_expected) 
   dl_dbeta_dgamma_hat = (psi_mle/y1_expected) 
   
   dl_dgamma_dpsi_hat = (gamma_mle*psi)/(y1_expected)
   dl_dgamma_dbeta_hat = psi/y1_expected
-  dl_dgamma_dgamma_hat = (u/gamma) + ((psi_mle^2)/y1_expected)
+  dl_dgamma_dgamma_hat = (u/gamma) + (psi*psi_mle/y1_expected)
   
   return(
-    matrix(data=c(
-            c(dl_dbeta_dpsi_hat, dl_dbeta_dbeta_hat, dl_dbeta_dgamma_hat),
-            c(dl_dgamma_dpsi_hat, dl_dgamma_dbeta_hat, dl_dgamma_dgamma_hat)
-          ), nrow=2, ncol=3)
+    rbind(c(dl_dbeta_dpsi_hat, dl_dbeta_dbeta_hat, dl_dbeta_dgamma_hat),
+          c(dl_dgamma_dpsi_hat, dl_dgamma_dbeta_hat, dl_dgamma_dgamma_hat))
   )
 }
 
