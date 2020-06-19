@@ -45,12 +45,6 @@ lrt = function(psi_0, y, ...) {
 r_psi = function(psi_0, y, ...) {
   psi_global_mle = getGlobalMLE(y)[1]
   diff = l_p(psi_global_mle, y) - l_p(psi_0, y)
-  if (is.nan(diff) || is.na(diff)) {
-    browser()
-  }
-  if (diff < 0) {
-    print("r_psi : diff is negative")
-  }
   val = sign(psi_global_mle - psi_0) * sqrt(2 * diff)
   return(c(val, 1-pnorm(val)))
 }
@@ -83,11 +77,7 @@ r_star_psi = function(psi_0, y, ...) {
   j = j(MLEs[1], MLEs[2], MLEs[3], y)
   det_j = det(j)
   
-  if (!is.nan(det_j) && det_j <= 0 && y[1] == 0) {
-    print("UH OH")
-    j_term = NaN
-  } else if (!is.nan(det_j) && det_j <= 0 && y[1] > 0) {
-    print("Meh")
+  if (!is.nan(det_j) && det_j <= 0) {
     j_term = NaN
   } else {
     j_term = sqrt(det_lambda) * sqrt(det_j)

@@ -132,18 +132,6 @@ j = function(psi, beta, gamma, y) {
   )
 }
 
-
-# Example of issue. I thought the observed information
-# was positive determinant and thus j should have a
-# positive determinant...
-j1 = j(21, 0.2962963, 0.125, ytest)
-j1
-det(j1)
-
-getGlobalMLE(c(2, 4, 15))
-j2 = j(9.8765432, 0.1481481, 0.1875, c(2, 4, 15))
-det(j2)
-
 # derivatives of the log-likelihood w.r.t. psi, beta, and gamma
 dl = function(psi, beta, gamma, y) {
   y1_expected = gamma*psi + beta

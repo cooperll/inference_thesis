@@ -7,10 +7,26 @@ source(paste(sourceDir, 'test_statistics.R', sep=""))
 source(paste(sourceDir, 'power_fns.R', sep=""))
 source(paste(sourceDir, 'plotting.R', sep=""))
 
-# initial values as seen in Davison & Sartori's paper
-y = matrix(c(1, 8, 14), nrow=3, ncol=1, byrow=FALSE)
+# Example of current issue. I thought the observed information
+# was positive determinant and thus j should have a
+# positive determinant...
 t = c(27)
 u = c(80)
+
+MLEs = getGlobalMLE(c(4, 8, 10))
+j1 = j(MLEs[1], MLEs[2], MLEs[3], y=c(4, 8, 10))
+j1
+det(j1)
+
+differentMLEs = getGlobalMLE(c(2, 4, 15))
+j2 = j(differentMLEs[1], differentMLEs[2], differentMLEs[3], c(2, 4, 15))
+det(j2)
+
+
+
+########################################
+##### Some plots of power functions
+########################################
 
 # Values for plots
 psis = seq(0, 10, 2)
@@ -21,22 +37,16 @@ alpha = 0.10
 ylim = c(0, 0.8)
 
 num_reps = 2000
-
+num_boot_samples = num_reps/12
+  
 psi_string = expression(psi)
 title = paste("Power fns; beta=", beta, 
               ", gamma=", gamma, 
               ", alph=", alpha, sep="")
 
 plotPowerFns(psis, psi_0, beta, gamma, alpha,
-             num_reps, num_boot_samples, origData=y,
+             num_reps, num_boot_samples, origData=c(1, 8, 14),
              ylim, title)
-
-plot(psis, power(psis, psi_0, beta, gamma, lrt, num_reps=num_reps, alpha), 
-     type="l", col="blue", xlab=psi_string, ylab="Power", 
-     main=title, ylim=ylim)
-
-lines(psis, power(psis, psi_0, beta, gamma, r_star_psi, num_reps=num_reps, alpha), 
-      col="dark green")
 
 legend(x=0, y=0.8,
        legend=c("LRT", "r", "r.boot", "r*", "r* boot"),
@@ -65,7 +75,7 @@ title = paste("Power fns; beta=", beta,
               ", alph=", alpha, sep="")
 
 plotPowerFns(psis, psi_0, beta, gamma, alpha,
-             num_reps, num_boot_samples, origData=y,
+             num_reps, num_boot_samples, origData=c(1, 8, 14),
              ylim, title)
 
 legend(x=0, y=1.0,
