@@ -37,7 +37,8 @@ lrt = function(psi_0, y, ...) {
   gamma_p = gamma_p_0(y)
   psi_global_mle = getGlobalMLE(y)[1]
 
-  val = 2 * (l(psi_global_mle, beta_p, gamma_p, y) - l(psi_0, beta_p, gamma_p, y))
+  val = 2 * (l(psi_global_mle, beta_p, gamma_p, y) - 
+             l(psi_0, beta_p, gamma_p, y))
   return(c(val, 1-pchisq(val, df=1)))
 }
 
@@ -91,7 +92,8 @@ r_star_psi = function(psi_0, y, ...) {
   if (is.nan(quotient)) {
     ### This case occurs when y_2 or y_3 is 0
     ### (and thus, beta's and/or gamma's MLE is 0)
-    quotient = 0.00001
+    #quotient = 0.00001
+    return(c(NaN, NaN))
   } else if (is.infinite(quotient) && quotient == Inf) {
     ### 
     ### TODO: This appears to the big remaining
@@ -104,13 +106,14 @@ r_star_psi = function(psi_0, y, ...) {
     ### Setting quotient to a small number in this case to 
     ### minimize the contribution of this case to increased rejection 
     ### rate in repeated sampling
-    quotient = 0.00001
+    return(c(NaN, NaN))
   } else if (is.infinite(quotient) && quotient == -Inf) {
     ### This case occurs when y_1 is 0 (and thus the psi MLE is 0, and 
     ### r(psi) is 0.
     ### For some reason, the determinant of m is always negative in this case
     ### as well... This seems fishy. 
-    quotient = 0.00001
+    return(c(NaN, NaN))
+    #quotient = 0.00001
   }
   
   val = r_psi[1] + ((log(quotient)) / r_psi[1])

@@ -49,9 +49,8 @@ plotPowerFns(psis, psi_0, beta, gamma, alpha,
              ylim, title)
 
 legend(x=0, y=0.8,
-       legend=c("LRT", "r", "r.boot", "r*", "r* boot"),
-       col=c("blue", "red", "purple", "dark green", 
-             "dark orange"),
+       legend=c("LRT", "r", "r*"),
+       col=c("blue", "red", "dark green"),
        lty=1:1, cex=0.8)
 
 ###################################

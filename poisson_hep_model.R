@@ -35,7 +35,7 @@ L = function(psi, beta, gamma, y) {
   L1 = ((gamma[1]*psi + beta[1])^y[1]) * exp(-(gamma[1]*psi + beta[1]))
   L2 = ((beta[1]*t[1])^y[2]) * exp(-beta[1]*t[1])
   L3 = ((gamma[1]*u[1])^y[3]) * exp(-gamma[1]*u[1])
-  return(L1 * L2 * L3)
+  return(L1 * L2 * L3 / (factorial(y[1]) * factorial(y[2]) * factorial(y[3])))
   #return(exp(l(psi, beta, gamma, y)))
 }
 
@@ -96,10 +96,6 @@ dL_p = function(psi, y) {
 
 # Profile log likelihood
 l_p = function(psi, y) {
-  if (is.na(beta_p_0(y))) {
-    print("UH OH")
-    print(y)
-  }
   val = l(psi, beta_p_0(y), gamma_p_0(y), y)
   return(val)
 }
